@@ -1,0 +1,98 @@
+{
+  "catalogs": [
+    {
+      "user": "^superset$",
+      "catalog": "delta",
+      "allow": "read-only"
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "allow": "all"
+    },
+    {
+      "catalog": "delta",
+      "allow": "none"
+    }
+  ],
+  "schemas": [
+    {
+      "user": "^superset$",
+      "catalog": "delta",
+      "schema": "silver",
+      "owner": false
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "bronze",
+      "owner": true
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "silver",
+      "owner": true
+    }
+  ],
+  "tables": [
+    {
+      "user": "^superset$",
+      "catalog": "delta",
+      "schema": "silver",
+      "table": "report_.*",
+      "privileges": ["SELECT", "GRANT_SELECT"]
+    },
+    {
+      "user": "^superset$",
+      "catalog": "delta",
+      "schema": "silver",
+      "table": ".*_analytics",
+      "privileges": ["SELECT", "GRANT_SELECT"]
+    },
+    {
+      "user": "^superset$",
+      "catalog": "delta",
+      "schema": "silver",
+      "table": ".*",
+      "privileges": []
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "bronze",
+      "table": ".*",
+      "privileges": ["SELECT", "OWNERSHIP", "GRANT_SELECT"]
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "silver",
+      "table": ".*_clean",
+      "privileges": ["SELECT", "OWNERSHIP", "GRANT_SELECT"]
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "silver",
+      "table": "report_.*",
+      "privileges": ["SELECT", "OWNERSHIP", "GRANT_SELECT"]
+    },
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "silver",
+      "table": ".*_analytics",
+      "privileges": ["SELECT", "OWNERSHIP", "GRANT_SELECT"]
+    }
+  ],
+  "procedures": [
+    {
+      "user": "^(trino|airflow|admin)$",
+      "catalog": "delta",
+      "schema": "system",
+      "procedure": ".*",
+      "privileges": ["EXECUTE"]
+    }
+  ]
+}

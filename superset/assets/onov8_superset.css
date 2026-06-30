@@ -1,0 +1,125 @@
+:root {
+  --onov8-bg: #070b16;
+  --onov8-surface: #0b1020;
+  --onov8-panel: #111827;
+  --onov8-border: #233044;
+  --onov8-text: #f8fafc;
+  --onov8-muted: #94a3b8;
+  --onov8-blue: #38bdf8;
+  --onov8-green: #22c55e;
+}
+
+body {
+  background: var(--onov8-bg) !important;
+}
+
+#app,
+.ant-layout,
+.ant-layout-content,
+.dashboard,
+.dashboard-content {
+  background: var(--onov8-bg) !important;
+}
+
+.navbar,
+.navbar-static-top,
+.ant-layout-header,
+.top-nav,
+[class*="Header"] {
+  background: rgba(11, 16, 32, 0.98) !important;
+  border-bottom: 1px solid var(--onov8-border) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28) !important;
+}
+
+.navbar a,
+.navbar .dropdown-toggle,
+.ant-menu,
+.ant-menu-item,
+.ant-menu-submenu-title {
+  color: var(--onov8-text) !important;
+}
+
+.navbar-brand img,
+.navbar img[src*="onov8"] {
+  max-height: 38px !important;
+}
+
+.onov8-login-brand {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  margin: 0 0 22px;
+  text-align: center;
+}
+
+.onov8-login-brand img {
+  width: min(260px, 80vw);
+  height: auto;
+}
+
+.onov8-login-brand strong {
+  color: var(--onov8-text);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.onov8-login-brand span {
+  color: var(--onov8-muted);
+  font-size: 13px;
+}
+
+.login,
+.login-container,
+.login-wrapper,
+.auth-main,
+[class*="Login"] {
+  background:
+    radial-gradient(circle at 20% 12%, rgba(56, 189, 248, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 4%, rgba(34, 197, 94, 0.16), transparent 30%),
+    var(--onov8-bg) !important;
+}
+
+.login .panel,
+.login .well,
+.login form,
+.login-container form,
+.auth-main form,
+[class*="Login"] form {
+  border: 1px solid var(--onov8-border) !important;
+  border-radius: 10px !important;
+  background: rgba(17, 24, 39, 0.94) !important;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42) !important;
+}
+
+.login input,
+.login-container input,
+.auth-main input,
+[class*="Login"] input,
+.ant-input {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: var(--onov8-text) !important;
+}
+
+.btn-primary,
+.ant-btn-primary {
+  background: linear-gradient(135deg, var(--onov8-blue), var(--onov8-green)) !important;
+  border-color: transparent !important;
+  color: #04111f !important;
+  font-weight: 700 !important;
+}
+
+.dashboard-component,
+.slice_container,
+.chart-container,
+.ant-card,
+.ant-table,
+.table,
+.panel {
+  border-color: var(--onov8-border) !important;
+}
+
+footer,
+.footer {
+  color: var(--onov8-muted) !important;
+}

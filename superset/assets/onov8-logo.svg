@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="84" viewBox="0 0 320 84" role="img" aria-labelledby="title desc">
+  <title id="title">ONOV8 Report System</title>
+  <desc id="desc">ONOV8 dark enterprise reporting platform logo</desc>
+  <defs>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="0.52" stop-color="#22c55e"/>
+      <stop offset="1" stop-color="#f8fafc"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="84" rx="12" fill="#0b1020"/>
+  <g transform="translate(18 16)">
+    <path d="M27 0 54 13.5v27L27 54 0 40.5v-27L27 0Z" fill="#111827" stroke="url(#mark)" stroke-width="3"/>
+    <path d="M16 27c0-7.18 5.82-13 13-13h9v8h-9a5 5 0 0 0 0 10h9v8h-9c-7.18 0-13-5.82-13-13Z" fill="#38bdf8"/>
+    <path d="M38 14h6l-14 26h-6l14-26Z" fill="#22c55e"/>
+  </g>
+  <text x="86" y="39" fill="#f8fafc" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="800" letter-spacing="0">ONOV8</text>
+  <text x="88" y="62" fill="#94a3b8" font-family="Inter, Arial, sans-serif" font-size="15" font-weight="600" letter-spacing="0">Report System</text>
+</svg>
