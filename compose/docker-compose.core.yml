@@ -1,0 +1,279 @@
+x-airflow-common: &airflow-common
+  image: local-data-platform-modular-airflow
+  environment: &airflow-env
+    TZ: ${TZ}
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@airflow-postgres:5432/${AIRFLOW_DB_NAME}
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+    AIRFLOW__WEBSERVER__WEB_SERVER_PORT: 8080
+    AIRFLOW__WEBSERVER__WORKERS: 1
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY:-local-airflow-secret-key}
+    AIRFLOW_UID: "50000"
+    PIP_NO_CACHE_DIR: "1"
+    EXTERNAL_MONGO_SOURCE_URI: ${EXTERNAL_MONGO_SOURCE_URI}
+    MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+    MONGO_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    MONGO_USERS_DB: ${MONGO_USERS_DB}
+    MONGO_ORDERS_DB: ${MONGO_ORDERS_DB}
+    MONGO_PRODUCTS_DB: ${MONGO_PRODUCTS_DB}
+    MONGO_PAYMENTS_DB: ${MONGO_PAYMENTS_DB}
+    MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+    MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    MINIO_BUCKET_RAW: ${MINIO_BUCKET_RAW}
+    MINIO_BUCKET_DELTA: ${MINIO_BUCKET_DELTA}
+    MINIO_BUCKET_AUDIT: ${MINIO_BUCKET_AUDIT}
+    MINIO_REGION: ${MINIO_REGION}
+    TRINO_USER: ${TRINO_USER}
+    SUPERSET_INTERNAL_URL: ${SUPERSET_INTERNAL_URL}
+    SUPERSET_EXTERNAL_URL: ${SUPERSET_EXTERNAL_URL}
+    SUPERSET_USER: ${SUPERSET_USER}
+    SUPERSET_PASSWORD: ${SUPERSET_PASSWORD}
+    SUPERSET_TRINO_USER: ${SUPERSET_TRINO_USER}
+    SUPERSET_TRINO_SQLALCHEMY_URI: ${SUPERSET_TRINO_SQLALCHEMY_URI}
+    OPENMETADATA_INTERNAL_URL: ${OPENMETADATA_INTERNAL_URL}
+    OPENMETADATA_EXTERNAL_URL: ${OPENMETADATA_EXTERNAL_URL}
+    OPENMETADATA_FALLBACK_ENABLED: ${OPENMETADATA_FALLBACK_ENABLED}
+    DASHBOARD_POSTGRES_HOST: dashboard-postgres
+    DASHBOARD_POSTGRES_PORT: 5432
+    DASHBOARD_POSTGRES_DB: ${DASHBOARD_POSTGRES_DB}
+    DASHBOARD_POSTGRES_USER: ${DASHBOARD_POSTGRES_USER}
+    DASHBOARD_POSTGRES_PASSWORD: ${DASHBOARD_POSTGRES_PASSWORD}
+  volumes: &airflow-volumes
+    - ../airflow/dags:/opt/airflow/dags
+    - ../platform_scripts:/opt/platform/scripts
+    - ../data:/opt/platform/data
+    - ../.env:/opt/platform/.env:ro
+  networks:
+    - onov8-data-platform-net
+
+services:
+  airflow-postgres:
+    image: postgres:16-alpine
+    container_name: local-data-platform-modular-airflow-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
+      AIRFLOW_DB_NAME: ${AIRFLOW_DB_NAME}
+      SUPERSET_DB_NAME: ${SUPERSET_DB_NAME}
+      METASTORE_DB_NAME: ${METASTORE_DB_NAME}
+    ports:
+      - "${POSTGRES_HOST_PORT}:5432"
+    volumes:
+      - ../data/core/airflow-postgres:/var/lib/postgresql/data
+      - ../postgres/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${AIRFLOW_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+  dashboard-postgres:
+    image: postgres:16-alpine
+    container_name: local-data-platform-modular-dashboard-postgres
+    environment:
+      POSTGRES_USER: ${DASHBOARD_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${DASHBOARD_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${DASHBOARD_POSTGRES_DB}
+    ports:
+      - "${DASHBOARD_POSTGRES_HOST_PORT}:5432"
+    volumes:
+      - ../data/core/dashboard-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DASHBOARD_POSTGRES_USER} -d ${DASHBOARD_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+  hive-metastore:
+    image: local-data-platform-modular-hive-metastore
+    build:
+      context: ../docker/hive
+    container_name: local-data-platform-modular-hive-metastore
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      HIVE_AUX_JARS_PATH: /opt/hive/lib/postgresql-42.7.4.jar:/opt/hadoop/share/hadoop/tools/lib/hadoop-aws-3.3.6.jar:/opt/hadoop/share/hadoop/tools/lib/aws-java-sdk-bundle-1.12.367.jar
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      AWS_DEFAULT_REGION: ${MINIO_REGION}
+      SERVICE_OPTS: >-
+        -Xmx512m
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://airflow-postgres:5432/${METASTORE_DB_NAME}
+        -Djavax.jdo.option.ConnectionUserName=${POSTGRES_USER}
+        -Djavax.jdo.option.ConnectionPassword=${POSTGRES_PASSWORD}
+        -Dhive.metastore.warehouse.dir=/tmp/hive-warehouse
+        -Dfs.s3a.endpoint=http://minio:9000
+        -Dfs.s3a.access.key=${MINIO_ROOT_USER}
+        -Dfs.s3a.secret.key=${MINIO_ROOT_PASSWORD}
+        -Dfs.s3a.path.style.access=true
+        -Dfs.s3a.connection.ssl.enabled=false
+        -Dfs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+        -Dfs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+        -Dfs.s3n.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+    ports:
+      - "${HIVE_METASTORE_PORT}:9083"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9083'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    build:
+      context: ../docker/airflow
+    container_name: local-data-platform-modular-airflow-init
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    command: >
+      bash -lc "
+      airflow db migrate &&
+      airflow users create
+      --role Admin
+      --username ${AIRFLOW_USER}
+      --password ${AIRFLOW_PASSWORD}
+      --firstname Local
+      --lastname Admin
+      --email admin@example.com || true
+      "
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: local-data-platform-modular-airflow-webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    command: webserver
+    ports:
+      - "${AIRFLOW_PORT}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: local-data-platform-modular-airflow-scheduler
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    restart: unless-stopped
+
+  dashboard-api:
+    image: local-data-platform-modular-dashboard-api
+    build:
+      context: ..
+      dockerfile: dashboard/api/Dockerfile
+    container_name: local-data-platform-modular-dashboard-api
+    env_file:
+      - ../.env
+    depends_on:
+      dashboard-postgres:
+        condition: service_healthy
+    environment:
+      DASHBOARD_POSTGRES_HOST: dashboard-postgres
+      DASHBOARD_POSTGRES_PORT: 5432
+      DASHBOARD_POSTGRES_DB: ${DASHBOARD_POSTGRES_DB}
+      DASHBOARD_POSTGRES_USER: ${DASHBOARD_POSTGRES_USER}
+      DASHBOARD_POSTGRES_PASSWORD: ${DASHBOARD_POSTGRES_PASSWORD}
+      DASHBOARD_API_BASE_URL: http://dashboard-api:8001
+      AIRFLOW_API_URL: http://airflow-webserver:8080
+      AIRFLOW_USER: ${AIRFLOW_USER}
+      AIRFLOW_PASSWORD: ${AIRFLOW_PASSWORD}
+      MINIO_ENDPOINT: http://minio:9000
+      SUPERSET_INTERNAL_URL: ${SUPERSET_INTERNAL_URL}
+      SUPERSET_EXTERNAL_URL: ${SUPERSET_EXTERNAL_URL}
+      SUPERSET_USER: ${SUPERSET_USER}
+      SUPERSET_PASSWORD: ${SUPERSET_PASSWORD}
+      SUPERSET_TRINO_USER: ${SUPERSET_TRINO_USER}
+      SUPERSET_TRINO_SQLALCHEMY_URI: ${SUPERSET_TRINO_SQLALCHEMY_URI}
+      OPENMETADATA_INTERNAL_URL: ${OPENMETADATA_INTERNAL_URL}
+      OPENMETADATA_EXTERNAL_URL: ${OPENMETADATA_EXTERNAL_URL}
+      OPENMETADATA_FALLBACK_ENABLED: ${OPENMETADATA_FALLBACK_ENABLED}
+      EXTERNAL_MONGO_SOURCE_URI: ${EXTERNAL_MONGO_SOURCE_URI}
+      ONOV8_PROJECT_ROOT: ${PWD}
+      ONOV8_RUNTIME_SCRIPTS_DIR: /opt/platform/runtime-scripts
+      AUTO_SEED_DEMO_SOURCES: "false"
+    volumes:
+      - ${PWD}:${PWD}:ro
+      - ../dashboard/api/app:/opt/platform/dashboard/api/app
+      - ../dashboard/web/src:/opt/platform/dashboard/web/src:ro
+      - ../platform_scripts:/opt/platform/scripts
+      - ../scripts:/opt/platform/runtime-scripts:ro
+      - ../docs:/opt/platform/docs:ro
+      - ../airflow:/opt/platform/airflow:ro
+      - ../data:/opt/platform/data
+      - ../compose:/opt/platform/compose:ro
+      - ../compose/docker-compose.core.yml:/opt/platform/docker-compose.yml:ro
+      - ../.env:/opt/platform/.env:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "${DASHBOARD_API_PORT}:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/api/health | grep -q ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+  dashboard-web:
+    image: local-data-platform-modular-dashboard-web
+    build:
+      context: ..
+      dockerfile: dashboard/web/Dockerfile
+    container_name: local-data-platform-modular-dashboard-web
+    depends_on:
+      dashboard-api:
+        condition: service_healthy
+    environment:
+      VITE_API_BASE_URL: http://localhost:${DASHBOARD_API_PORT}
+    volumes:
+      - ../dashboard/web:/app
+      - /app/node_modules
+    ports:
+      - "${DASHBOARD_WEB_PORT}:5173"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5173 >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+networks:
+  onov8-data-platform-net:
+    external: true
+    name: onov8-data-platform-net

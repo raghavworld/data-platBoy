@@ -1,0 +1,84 @@
+services:
+  metadata-db:
+    image: mysql:8.4
+    container_name: local-data-platform-modular-metadata-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${OPENMETADATA_DB_ROOT_PASSWORD}
+      MYSQL_USER: ${OPENMETADATA_DB_USER}
+      MYSQL_PASSWORD: ${OPENMETADATA_DB_PASSWORD}
+      MYSQL_DATABASE: ${OPENMETADATA_DB_NAME}
+    volumes:
+      - ../data/governance/metadata-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysql --protocol=tcp -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} -D $${MYSQL_DATABASE} -e 'SELECT 1' >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+  metadata-search:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: local-data-platform-modular-metadata-search
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    volumes:
+      - ../data/governance/metadata-search:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep -Eq 'green|yellow'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+  openmetadata:
+    image: openmetadata/server:1.5.7
+    container_name: local-data-platform-modular-openmetadata
+    depends_on:
+      metadata-db:
+        condition: service_healthy
+      metadata-search:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8585
+      DB_HOST: metadata-db
+      DB_PORT: 3306
+      OM_DATABASE: ${OPENMETADATA_DB_NAME}
+      DB_USER: ${OPENMETADATA_DB_USER}
+      DB_USER_PASSWORD: ${OPENMETADATA_DB_PASSWORD}
+      ELASTICSEARCH_HOST: metadata-search
+      ELASTICSEARCH_PORT: 9200
+      ELASTICSEARCH_SCHEME: http
+      SEARCH_TYPE: elasticsearch
+      AUTHORIZER_CLASS_NAME: org.openmetadata.service.security.DefaultAuthorizer
+    command:
+      - -c
+      - |
+        until bash -c "</dev/tcp/$${DB_HOST}/$${DB_PORT}"; do
+          echo "Waiting for MySQL at $${DB_HOST}:$${DB_PORT}..."
+          sleep 2
+        done
+        cd /opt/openmetadata
+        ./bootstrap/openmetadata-ops.sh migrate
+        exec /openmetadata-start.sh
+    ports:
+      - "${OPENMETADATA_PORT}:8585"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8585'"]
+      interval: 20s
+      timeout: 10s
+      retries: 20
+    networks:
+      - onov8-data-platform-net
+    restart: unless-stopped
+
+networks:
+  onov8-data-platform-net:
+    external: true
+    name: onov8-data-platform-net
