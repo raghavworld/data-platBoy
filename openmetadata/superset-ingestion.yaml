@@ -1,0 +1,30 @@
+# Optional OpenMetadata Superset ingestion profile for Phase 6.
+# This is best-effort because Superset API auth and OpenMetadata ingestion
+# package versions can vary. The ONOV8 dashboard fallback catalog records
+# dashboard metadata from the local Superset metadata tables regardless.
+source:
+  type: superset
+  serviceName: onov8_superset
+  serviceConnection:
+    config:
+      type: Superset
+      hostPort: http://superset:8088
+      username: admin
+      password: admin
+      provider: db
+  sourceConfig:
+    config:
+      type: DashboardMetadata
+      chartFilterPattern:
+        includes:
+          - ONOV8.*
+      dashboardFilterPattern:
+        includes:
+          - ONOV8.*
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata:8585/api
+    authProvider: no-auth

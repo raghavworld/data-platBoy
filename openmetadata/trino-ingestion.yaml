@@ -1,0 +1,34 @@
+# Optional OpenMetadata Trino ingestion profile for Phase 6.
+# Run from an environment with openmetadata-ingestion installed and network
+# access to the Compose services. The ONOV8 dashboard fallback catalog does not
+# require this file to run.
+source:
+  type: trino
+  serviceName: onov8_trino
+  serviceConnection:
+    config:
+      type: Trino
+      hostPort: trino:8080
+      username: trino
+      catalog: delta
+      databaseSchema: silver
+  sourceConfig:
+    config:
+      type: DatabaseMetadata
+      includeTables: true
+      includeViews: true
+      markDeletedTables: false
+      schemaFilterPattern:
+        includes:
+          - silver
+      tableFilterPattern:
+        includes:
+          - .*_clean
+          - .*_analytics
+sink:
+  type: metadata-rest
+  config: {}
+workflowConfig:
+  openMetadataServerConfig:
+    hostPort: http://openmetadata:8585/api
+    authProvider: no-auth
